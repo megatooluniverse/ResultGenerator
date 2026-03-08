@@ -13,7 +13,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (!sessionStorage.getItem('popunderShown')) {
                 (function(s){s.dataset.zone='10637204',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
-                sessionStorage.setItem('popunderShown', 'true'); // Record that ad has been shown in this session
+                sessionStorage.setItem('popunderShown', 'true');
             }
         });
     </script>
@@ -79,7 +79,7 @@
 
         /* Responsive Table */
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 20px; border: 1px solid #000; }
-        table { width: 100%; border-collapse: collapse; min-width: 450px; }
+        table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #000; padding: 8px 10px; font-size: 0.9rem; }
         th { background: #f1f5f9; font-weight: bold; text-transform: uppercase; }
         .t-center { text-align: center; }
@@ -90,15 +90,36 @@
         .footer-section { display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.85rem; flex-wrap: wrap; gap: 20px; }
         .sign-line { border-top: 1px solid #000; padding-top: 5px; width: 120px; text-align: center; margin-top: 15px; }
 
+        /* --- MOBILE MEDIA QUERIES --- */
         @media (max-width: 768px) {
-            .container { flex-direction: column; }
-            .panel { padding: 1rem; }
-            #preview-area { padding: 1rem; }
+            .container { flex-direction: column; padding: 0 0.5rem; }
+            .panel { padding: 1rem; border-radius: 8px; }
+            
+            .form-row { flex-direction: column; gap: 0; }
+            .form-row .form-group { margin-bottom: 0.8rem; }
+            
+            .subject-row { flex-direction: column; align-items: stretch; border: 1px solid var(--border); padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+            .btn-del { width: 100%; margin-top: 5px; padding: 10px; }
+            .btn-group { flex-direction: column; }
+            .btn-group button { width: 100%; padding: 12px; }
+
+            #preview-area { padding: 0.8rem; border-radius: 8px; }
             .header-section { flex-direction: column; justify-content: center; text-align: center; }
             .spacer { display: none; } 
-            .logo-preview { display: block; margin: 0 auto; } 
+            .logo-preview { display: block; margin: 0 auto 10px auto; } 
+            .school-info h2 { font-size: 1.2rem; }
+            
             .student-section { flex-direction: column-reverse; align-items: center; text-align: center; }
-            .footer-section { flex-direction: column; align-items: center; text-align: center; }
+            
+            /* Table adjustments for mobile */
+            th, td { padding: 6px 4px; font-size: 0.75rem; }
+            
+            .stats-box { flex-direction: column; font-size: 0.9rem; }
+            .stats-box div { border-bottom: 1px dashed #ccc; padding-bottom: 5px; width: 100%; }
+            .stats-box div:last-child { border-bottom: none; padding-bottom: 0; }
+            
+            .footer-section { flex-direction: column; align-items: center; text-align: center; gap: 30px; }
+            .sign-line { width: 150px; }
         }
         @media (min-width: 769px) { .spacer { display: block; } }
     </style>
@@ -273,7 +294,7 @@
             tbody.innerHTML = '';
             
             let total = 0, maxTotal = 0;
-            let isAllPass = true; // To check if student passed in all subjects
+            let isAllPass = true; 
 
             document.querySelectorAll('.subject-row').forEach(row => {
                 const subName = row.querySelector('.sub-name').value;
@@ -285,7 +306,6 @@
                     maxTotal += globalMax;
                     const grade = getGrade(mark, globalMax);
                     
-                    // Check fail status per subject
                     if ((mark / globalMax) * 100 < passPercent) {
                         isAllPass = false;
                     }
@@ -318,7 +338,6 @@
             }
         }
         
-        // Listen to global changes
         document.querySelectorAll('input').forEach(i => i.addEventListener('input', updatePreview));
 
         // --- DOWNLOAD LOGIC ---
