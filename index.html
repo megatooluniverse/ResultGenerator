@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Advanced Result Generator | Responsive Edition</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1e40af;
+            --danger: #dc2626; --success: #16a34a;
+            --bg: #f8fafc; --text: #1f2937; --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 70px; overflow-x: hidden; }
+
+        /* --- GATEKEEPER --- */
+        .gate-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .gate-box { background: white; padding: 2rem; border-radius: 12px; width: 100%; max-width: 450px; max-height: 90vh; overflow-y: auto; text-align: center; }
+        .btn-enter { background: var(--success); color: white; padding: 12px; border: none; border-radius: 8px; width: 100%; margin-bottom: 10px; cursor: pointer; font-weight: bold; font-size: 1rem;}
+        .btn-exit { background: var(--danger); color: white; padding: 12px; border: none; border-radius: 8px; width: 100%; cursor: pointer; font-weight: bold; font-size: 1rem;}
+
+        /* --- LAYOUT --- */
+        header { background: white; padding: 1rem; text-align: center; border-bottom: 1px solid var(--border); }
+        .container { display: flex; flex-wrap: wrap; gap: 1.5rem; max-width: 1300px; margin: 1.5rem auto; padding: 0 1rem; }
+        .panel { flex: 1; min-width: 300px; background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); }
+
+        /* --- FORMS --- */
+        h3 { margin-bottom: 1rem; font-size: 1.1rem; border-bottom: 2px solid var(--primary); padding-bottom: 5px; color: var(--primary-dark); }
+        .form-group { margin-bottom: 0.8rem; width: 100%; }
+        label { display: block; margin-bottom: 0.3rem; font-size: 0.8rem; font-weight: bold; color: #475569; text-transform: uppercase; }
+        input { width: 100%; padding: 0.7rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; background: #f8fafc; }
+        input[type="file"] { padding: 0.5rem; background: white; cursor: pointer; }
+        
+        .subject-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .subject-row input:first-child { flex: 2; min-width: 120px; }
+        .subject-row input:nth-child(2) { flex: 1; min-width: 80px; }
+        .btn-del { background: #fee2e2; color: #dc2626; border: none; padding: 0.7rem; border-radius: 6px; cursor: pointer; font-weight: bold; height: 100%; }
+        .btn-add { background: #e0e7ff; color: var(--primary); border: 2px dashed var(--primary); width: 100%; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 15px; }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 1rem; flex-wrap: wrap; }
+        button { padding: 0.8rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; flex: 1; min-width: 140px; }
+        .btn-dl-jpg { background: var(--primary); color: white; }
+        .btn-dl-pdf { background: var(--danger); color: white; }
+
+        /* --- PREVIEW UI --- */
+        #preview-area { border: 1px solid #94a3b8; padding: 1.5rem; background: white; position: relative; min-height: 600px; color: black; overflow: hidden; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: clamp(2.5rem, 5vw, 6rem); font-weight: 900; color: rgba(0, 0, 0, 0.05); pointer-events: none; white-space: nowrap; z-index: 0; }
+        
+        .prev-content { position: relative; z-index: 1; }
+        
+        .header-section { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .logo-preview { width: 70px; height: 70px; object-fit: contain; display: none; }
+        .school-info { text-align: center; flex: 1; min-width: 200px; }
+        .school-info h2 { font-size: clamp(1.2rem, 3vw, 1.8rem); text-transform: uppercase; margin: 0; line-height: 1.2; }
+        .school-info p { font-size: 0.8rem; letter-spacing: 1px; text-transform: uppercase; margin-top: 5px; }
+        .spacer { width: 70px; display: none; } /* Balances the logo space on desktop */
+
+        .student-section { display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap-reverse; gap: 15px; }
+        .info-grid { font-family: 'Courier New', monospace; font-size: 0.95rem; line-height: 1.6; flex: 1; min-width: 200px; }
+        .photo-preview { width: 90px; height: 110px; border: 2px solid #000; object-fit: cover; display: none; background: #f1f5f9; }
+
+        /* Responsive Table Wrapper */
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 20px; border: 1px solid #000; }
+        table { width: 100%; border-collapse: collapse; min-width: 450px; }
+        th, td { border: 1px solid #000; padding: 8px 10px; font-size: 0.9rem; }
+        th { background: #f1f5f9; font-weight: bold; text-transform: uppercase; }
+        .t-center { text-align: center; }
+        
+        .stats-box { background: #f8fafc; border: 1px solid #000; padding: 10px; margin-bottom: 20px; display: flex; justify-content: space-around; font-weight: bold; font-size: 1rem; flex-wrap: wrap; gap: 10px; text-align: center; }
+        
+        .remarks-text { font-style: italic; margin-bottom: 30px; font-size: 0.95rem; word-break: break-word; }
+        .footer-section { display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.85rem; flex-wrap: wrap; gap: 20px; }
+        .sign-line { border-top: 1px solid #000; padding-top: 5px; width: 120px; text-align: center; margin-top: 15px; }
+
+        /* Media Queries for Mobile Fine-tuning */
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            .panel { padding: 1rem; }
+            #preview-area { padding: 1rem; }
+            .header-section { flex-direction: column; justify-content: center; text-align: center; }
+            .spacer { display: none; } /* Hide spacer on mobile */
+            .logo-preview { display: block; margin: 0 auto; } /* Center logo on mobile */
+            .student-section { flex-direction: column-reverse; align-items: center; text-align: center; }
+            .footer-section { flex-direction: column; align-items: center; text-align: center; }
+        }
+        @media (min-width: 769px) {
+            .spacer { display: block; } /* Show spacer on desktop to balance header */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="entryGate" class="gate-overlay">
+        <div class="gate-box">
+            <h2 style="color: var(--danger); margin-bottom: 10px;">Teacher Verification</h2>
+            <p style="margin-bottom: 20px; color: #555; line-height: 1.5;">Yeh tool sirf Teachers ke educational aur mock result generation ke liye hai.<br>Agar aap teacher nahi hain, toh kripya exit karein.</p>
+            <button class="btn-enter" onclick="document.getElementById('entryGate').style.display='none'">Yes, I am a Teacher</button>
+            <button class="btn-exit" onclick="window.location.href='https://www.google.com'">No, Exit Site</button>
+        </div>
+    </div>
+
+    <header><h2>Advanced Result Card Generator</h2></header>
+
+    <div class="container">
+        <div class="panel">
+            <h3>🖼️ Images & Branding</h3>
+            <div class="form-group">
+                <label>School Logo (Optional)</label>
+                <input type="file" id="logo-input" accept="image/*">
+            </div>
+            <div class="form-group">
+                <label>Student Photo (Optional)</label>
+                <input type="file" id="photo-input" accept="image/*">
+            </div>
+            <div class="form-group">
+                <label>Custom Watermark</label>
+                <input type="text" id="watermark-input" value="CONFIDENTIAL">
+            </div>
+
+            <br><h3>📝 Student Info</h3>
+            <div class="form-group"><label>Institution Name</label><input type="text" id="school" value="St. Xavier's High School"></div>
+            <div class="form-group"><label>Student Name</label><input type="text" id="name" value="Rahul Kumar"></div>
+            <div class="form-group"><label>Roll Number</label><input type="text" id="roll" value="24-B-109"></div>
+            <div class="form-group"><label>Class / Course</label><input type="text" id="std" value="Class 10 - Science"></div>
+            <div class="form-group"><label>Teacher's Remarks</label><input type="text" id="remarks" value="Excellent performance. Keep it up!"></div>
+
+            <br><h3>📊 Subjects & Marks (Out of 100)</h3>
+            <div id="subjects-container"></div>
+            <button class="btn-add" onclick="addSubject()">+ Add New Subject</button>
+
+            <div class="btn-group">
+                <button class="btn-dl-jpg" onclick="processDownload('jpg')">⬇ Download JPG</button>
+                <button class="btn-dl-pdf" onclick="processDownload('pdf')">⬇ Download PDF</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div id="preview-area">
+                <div class="watermark" id="p-watermark">CONFIDENTIAL</div>
+                <div class="prev-content">
+                    
+                    <div class="header-section">
+                        <img id="p-logo" class="logo-preview" alt="Logo">
+                        <div class="school-info">
+                            <h2 id="p-school">St. Xavier's High School</h2>
+                            <p>Annual Examination Report</p>
+                        </div>
+                        <div class="spacer"></div>
+                    </div>
+
+                    <div class="student-section">
+                        <div class="info-grid">
+                            <strong>Name:</strong> <span id="p-name">Rahul Kumar</span><br><br>
+                            <strong>Roll No:</strong> <span id="p-roll">24-B-109</span><br><br>
+                            <strong>Class:</strong> <span id="p-std">Class 10 - Science</span>
+                        </div>
+                        <img id="p-photo" class="photo-preview" alt="Student Photo">
+                    </div>
+
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th class="t-center">Max Marks</th>
+                                    <th class="t-center">Marks Obtained</th>
+                                    <th class="t-center">Grade</th>
+                                </tr>
+                            </thead>
+                            <tbody id="p-tbody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="stats-box">
+                        <div>Total: <span id="p-total">0</span> / <span id="p-max-total">0</span></div>
+                        <div>Percentage: <span id="p-percent">0</span>%</div>
+                        <div>Overall Grade: <span id="p-final-grade" style="color: var(--primary);">A</span></div>
+                        <div>Result: <span id="p-result">PASS</span></div>
+                    </div>
+
+                    <div class="remarks-text"><strong>Remarks:</strong> <span id="p-remarks">Excellent performance. Keep it up!</span></div>
+
+                    <div class="footer-section">
+                        <div>Date: <span id="p-date"></span></div>
+                        <div class="sign-line">Class Teacher</div>
+                        <div class="sign-line">Principal</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="hiddenCanvas" style="display: none;"></canvas>
+
+    <script>
+        // --- IMAGE UPLOAD LOGIC ---
+        function handleImageUpload(inputId, previewId) {
+            document.getElementById(inputId).addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if(file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const imgElement = document.getElementById(previewId);
+                        imgElement.src = event.target.result;
+                        imgElement.style.display = 'block';
+                        updatePreview();
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        handleImageUpload('logo-input', 'p-logo');
+        handleImageUpload('photo-input', 'p-photo');
+
+        const today = new Date();
+        document.getElementById('p-date').innerText = today.toLocaleDateString('en-GB');
+
+        // --- GRADING SYSTEM ---
+        function getGrade(marks) {
+            if(marks >= 90) return 'A+';
+            if(marks >= 80) return 'A';
+            if(marks >= 70) return 'B';
+            if(marks >= 60) return 'C';
+            if(marks >= 40) return 'D';
+            return 'F';
+        }
+
+        // --- SUBJECTS LOGIC ---
+        const initialSubjects = [
+            {name: "Mathematics", mark: "88"}, {name: "Science", mark: "76"},
+            {name: "English", mark: "92"}, {name: "Hindi", mark: "85"}
+        ];
+
+        function addSubject(name = '', mark = '') {
+            const container = document.getElementById('subjects-container');
+            const row = document.createElement('div');
+            row.className = 'form-group subject-row';
+            row.innerHTML = `
+                <input type="text" class="sub-name" value="${name}" placeholder="Subject">
+                <input type="number" class="sub-mark" value="${mark}" placeholder="Marks">
+                <button class="btn-del" onclick="this.parentElement.remove(); updatePreview();">X</button>
+            `;
+            container.appendChild(row);
+            row.querySelectorAll('input').forEach(i => i.addEventListener('input', updatePreview));
+            updatePreview();
+        }
+        initialSubjects.forEach(sub => addSubject(sub.name, sub.mark));
+
+        // --- LIVE PREVIEW ---
+        function updatePreview() {
+            document.getElementById('p-school').innerText = document.getElementById('school').value;
+            document.getElementById('p-name').innerText = document.getElementById('name').value;
+            document.getElementById('p-roll').innerText = document.getElementById('roll').value;
+            document.getElementById('p-std').innerText = document.getElementById('std').value;
+            document.getElementById('p-remarks').innerText = document.getElementById('remarks').value;
+            document.getElementById('p-watermark').innerText = document.getElementById('watermark-input').value;
+
+            const tbody = document.getElementById('p-tbody');
+            tbody.innerHTML = '';
+            
+            let total = 0, maxTotal = 0;
+            document.querySelectorAll('.subject-row').forEach(row => {
+                const subName = row.querySelector('.sub-name').value;
+                const markVal = row.querySelector('.sub-mark').value;
+                
+                if(subName.trim() !== '') {
+                    const mark = markVal === '' ? 0 : parseInt(markVal);
+                    total += mark; maxTotal += 100;
+                    const grade = getGrade(mark);
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${subName}</td>
+                            <td class="t-center">100</td>
+                            <td class="t-center"><strong>${mark}</strong></td>
+                            <td class="t-center"><strong>${grade}</strong></td>
+                        </tr>
+                    `;
+                }
+            });
+
+            const percent = maxTotal > 0 ? ((total / maxTotal) * 100).toFixed(1) : 0;
+            document.getElementById('p-max-total').innerText = maxTotal;
+            document.getElementById('p-total').innerText = total;
+            document.getElementById('p-percent').innerText = percent;
+            
+            document.getElementById('p-final-grade').innerText = getGrade(percent);
+            
+            const resultEl = document.getElementById('p-result');
+            if (maxTotal === 0) {
+                resultEl.innerText = "-"; resultEl.style.color = "var(--text)";
+            } else if (percent >= 33) {
+                resultEl.innerText = "PASS"; resultEl.style.color = "var(--success)";
+            } else {
+                resultEl.innerText = "FAIL"; resultEl.style.color = "var(--danger)";
+            }
+        }
+        document.querySelectorAll('input').forEach(i => i.addEventListener('input', updatePreview));
+
+        // --- DOWNLOAD LOGIC (Dynamic Height Added) ---
+        async function processDownload(format) {
+            const canvas = document.getElementById('hiddenCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Calculate dynamic height based on number of subjects
+            const rowsCount = document.querySelectorAll('.subject-row').length;
+            const dynamicHeight = Math.max(1100, 750 + (rowsCount * 40)); 
+            
+            canvas.width = 900;
+            canvas.height = dynamicHeight; 
+            
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(30, 30, 840, canvas.height - 60);
+            
+            ctx.fillStyle = '#000';
+
+            // 1. Draw Logo
+            const logoImg = document.getElementById('p-logo');
+            if(logoImg.style.display === 'block') {
+                ctx.drawImage(logoImg, 60, 50, 100, 100);
+            }
+
+            // 2. Header Text
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 36px Arial';
+            ctx.fillText(document.getElementById('school').value, 450, 90);
+            ctx.font = '18px Arial';
+            ctx.fillText("ANNUAL EXAMINATION REPORT", 450, 130);
+            
+            ctx.beginPath(); ctx.moveTo(50, 170); ctx.lineTo(850, 170); ctx.stroke();
+
+            // 3. Draw Student Photo
+            const photoImg = document.getElementById('p-photo');
+            if(photoImg.style.display === 'block') {
+                ctx.drawImage(photoImg, 720, 200, 110, 140);
+                ctx.strokeRect(720, 200, 110, 140);
+            }
+
+            // 4. Student Details
+            ctx.textAlign = 'left'; ctx.font = 'bold 20px Courier New';
+            let y = 220;
+            ctx.fillText(`Name    : ${document.getElementById('name').value}`, 60, y); y += 40;
+            ctx.fillText(`Roll No : ${document.getElementById('roll').value}`, 60, y); y += 40;
+            ctx.fillText(`Class   : ${document.getElementById('std').value}`, 60, y);
+
+            // 5. Table Header
+            y = 380;
+            ctx.fillStyle = '#f1f5f9'; ctx.fillRect(50, y, 800, 40); ctx.strokeRect(50, y, 800, 40);
+            ctx.fillStyle = '#000'; ctx.font = 'bold 18px Arial';
+            ctx.fillText("SUBJECT", 70, y+26);
+            ctx.textAlign = 'center';
+            ctx.fillText("MAX MARKS", 450, y+26);
+            ctx.fillText("OBTAINED", 650, y+26);
+            ctx.fillText("GRADE", 780, y+26);
+
+            // 6. Table Body
+            y += 40; ctx.font = '18px Arial';
+            document.querySelectorAll('.subject-row').forEach(row => {
+                const name = row.querySelector('.sub-name').value;
+                const mark = row.querySelector('.sub-mark').value || "0";
+                if(name.trim() !== '') {
+                    ctx.strokeRect(50, y, 800, 40);
+                    ctx.textAlign = 'left'; ctx.fillText(name, 70, y+26);
+                    ctx.textAlign = 'center';
+                    ctx.fillText("100", 450, y+26);
+                    ctx.fillText(mark, 650, y+26);
+                    ctx.fillText(getGrade(parseInt(mark)), 780, y+26);
+                    y += 40;
+                }
+            });
+
+            // 7. Stats Box
+            y += 30;
+            ctx.fillStyle = '#f8fafc'; ctx.fillRect(50, y, 800, 60); ctx.strokeRect(50, y, 800, 60);
+            ctx.fillStyle = '#000'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center';
+            
+            const total = document.getElementById('p-total').innerText;
+            const max = document.getElementById('p-max-total').innerText;
+            const perc = document.getElementById('p-percent').innerText;
+            const fGrade = document.getElementById('p-final-grade').innerText;
+            const res = document.getElementById('p-result').innerText;
+
+            ctx.fillText(`Total: ${total}/${max}`, 150, y+38);
+            ctx.fillText(`Percentage: ${perc}%`, 380, y+38);
+            ctx.fillText(`Grade: ${fGrade}`, 600, y+38);
+            
+            ctx.fillStyle = res === "PASS" ? "#16a34a" : (res === "FAIL" ? "#dc2626" : "#000");
+            ctx.fillText(`Result: ${res}`, 760, y+38);
+            ctx.fillStyle = '#000';
+
+            // 8. Remarks
+            y += 100; ctx.font = 'italic 20px Arial'; ctx.textAlign = 'left';
+            ctx.fillText(`Remarks: ${document.getElementById('remarks').value}`, 60, y);
+
+            // 9. Signatures
+            y += 150; ctx.font = '18px Arial';
+            ctx.fillText(`Date: ${document.getElementById('p-date').innerText}`, 60, y);
+            
+            ctx.textAlign = 'center';
+            ctx.fillText("Class Teacher", 450, y);
+            ctx.beginPath(); ctx.moveTo(380, y-25); ctx.lineTo(520, y-25); ctx.stroke();
+            
+            ctx.fillText("Principal", 780, y);
+            ctx.beginPath(); ctx.moveTo(710, y-25); ctx.lineTo(850, y-25); ctx.stroke();
+
+            // 10. Watermark
+            const wmText = document.getElementById('watermark-input').value;
+            if (wmText.trim() !== '') {
+                ctx.save(); ctx.translate(450, canvas.height / 2); ctx.rotate(-Math.PI / 4);
+                ctx.font = 'bold 100px Arial'; ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+                ctx.textAlign = 'center'; ctx.fillText(wmText, 0, 0); ctx.restore();
+            }
+
+            // Export Process
+            const imgData = canvas.toDataURL("image/jpeg", 1.0);
+            if (format === 'jpg') {
+                const link = document.createElement('a'); link.download = 'Advanced-Result.jpg';
+                link.href = imgData; link.click();
+            } else {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'pt', [canvas.width, canvas.height]);
+                pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+                pdf.save('Advanced-Result.pdf');
+            }
+        }
+    </script>
+</body>
+</html>
